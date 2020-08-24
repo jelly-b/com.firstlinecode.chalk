@@ -19,6 +19,7 @@ import com.firstlinecode.basalt.protocol.core.stanza.error.ServiceUnavailable;
 import com.firstlinecode.basalt.protocol.core.stanza.error.StanzaError;
 import com.firstlinecode.basalt.protocol.core.stream.error.StreamError;
 import com.firstlinecode.basalt.protocol.im.stanza.Message;
+import com.firstlinecode.chalk.IParsingListener;
 import com.firstlinecode.chalk.core.IErrorListener;
 import com.firstlinecode.chalk.core.stanza.IStanzaListener;
 import com.firstlinecode.chalk.network.ConnectionException;
@@ -34,6 +35,7 @@ public class Stream implements IStream, IConnectionListener {
 	private List<IErrorListener> errorListeners;
 	private List<IConnectionListener> connectionListeners;
 	private List<IStanzaWatcher> stanzaWatchers;
+	private IParsingListener parsingListener;
 	
 	private JabberId jid;
 	private StreamConfig streamConfig;
@@ -142,7 +144,11 @@ public class Stream implements IStream, IConnectionListener {
 			for (IConnectionListener connectionListener : connectionListeners) {
 				connectionListener.received(message);
 			}
-			
+
+			if (parsingListener != null) {
+				message = parsingListener.beforeParsing(message);
+			}
+
 			Object object = null;
 			IError error = null;
 			try {
@@ -159,6 +165,13 @@ public class Stream implements IStream, IConnectionListener {
 				}
 				
 				return;
+			}
+
+			if (parsingListener != null) {
+				object = parsingListener.afterParsing(object);
+				if (object == null) {
+					return;
+				}
 			}
 			
 			if (object instanceof StanzaError) {
@@ -274,6 +287,11 @@ public class Stream implements IStream, IConnectionListener {
 	@Override
 	public void removeConnectionListener(IConnectionListener connectionListener) {
 		connectionListeners.remove(connectionListener);
+	}
+
+	@Override
+	public void setParsingListener(IParsingListener listener) {
+		this.parsingListener = listener;
 	}
 
 	@Override
